@@ -6,14 +6,14 @@ from std_msgs.msg import Float32, Bool
 
 class LidarAlarm():
     # set alarm if anything is within 0.5m of the front of robot
-    MIN_SAFE_DISTANCE = 0.5 
+    MIN_SAFE_DISTANCE = .5
     
     # set what percentages of pings must be < than MIN_SAFE_DISTANCE
     # for our alarm to return a warning
-    ALARM_TRIP_PERCENTAGE = .1
+    ALARM_TRIP_PERCENTAGE = .3
 
     # Set what width (in pings) we want to scan for obstacles
-    ALARM_SCAN_WIDTH = 150
+    ALARM_SCAN_WIDTH = 90
     
     # these values to be set within the laser callback
     ping_dist_in_front_ = 3  # global var to hold length of a SINGLE LIDAR ping--in front
@@ -63,20 +63,26 @@ class LidarAlarm():
         count = 0
         numPings = 0
         average = 0
+        averageDanger = 0
         for  x in range(self.min_index, self.max_index) :
             if laser_scan.ranges[x] > self.range_min_ :
                 if laser_scan.ranges[x] < self.range_max_ :
                     numPings += 1
+                    average += laser_scan.ranges[x]
                     if laser_scan.ranges[x] < self.MIN_SAFE_DISTANCE :
                         count += 1
-                        average += laser_scan.ranges[x]
+                        averageDanger += laser_scan.ranges[x]
 
-        rospy.loginfo("%d valid lidar pings with %d dangerous pings with average distance %f", numPings, count, float(average) / float(numPings))
+
+        #rospy.loginfo("%d valid lidar pings with average distance %f", numPings, float(average) / float(numPings))
+        #if count is not 0:
+            #rospy.loginfo("%d dangerous pings with average distance %f", count, float(averageDanger) / float(count))
+
         if count > (numPings * self.ALARM_TRIP_PERCENTAGE) :
-            self.laser_alarm_front = True
+            self.laser_alarm = True
             rospy.loginfo("LIDAR ALARM! DANGER!") 
         else :
-            self.laser_alarm_front = False
+            self.laser_alarm = False
 
         lidar_alarm_msg = Bool()
         lidar_alarm_msg.data = self.laser_alarm
@@ -87,11 +93,11 @@ class LidarAlarm():
         self.lidar_dist_publisher_.publish(lidar_dist_msg)
 
 def main():
-    rospy.init_node('my_lidar_alarm')
+    rospy.init_node('lidar_alarm')
     alarm = LidarAlarm()
 
     # create a Subscriber object and have it subscribe to the lidar topic
-    lidar_subscriber = rospy.Subscriber('robot0/laser_0', LaserScan, alarm.laserCallback)
+    lidar_subscriber = rospy.Subscriber('scan', LaserScan, alarm.laserCallback)
     rospy.spin()
     # this is essentially a "while(1)" statement, except it
     # forces refreshing wakeups upon new data arrival
